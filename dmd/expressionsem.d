@@ -6115,8 +6115,11 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
 
             if (!global.params.useGC && sc.needsCodegen())
             {
-                error(exp.loc, "expression `%s` allocates with the GC and cannot be used with switch `-%s`", exp.toErrMsg(), SwitchVariadic.ptr);
-                return setError();
+                if (sc.func)
+                {
+                    sc.func.skipCodegen = true; // same net result as calling checkGC
+                    goto LskipNewArrayLowering; // not checked in sc.needsCodegen() !?
+                }
             }
 
             if (!sc.needsCodegen())
@@ -18857,12 +18860,12 @@ private Expression buildAAIndexRValueX(Type t, Expression eaa, Expression ekey, 
     auto call = new CallExp(loc, func, arguments);
     e0 = Expression.combine(e0, call);
 
-    if (arrayBoundsCheck(sc.func))
+    if (sc.func && arrayBoundsCheck(sc.func))
     {
         // __aaget = _d_aaGetRvalueX(aa, key), __aaget ? __aaget : onRangeError(__FILE__, __LINE__)
         auto ei = new ExpInitializer(loc, e0);
-        auto vartmp = Identifier.generateId("__aaget");
-        auto vardecl = new VarDeclaration(loc, null, vartmp, ei, STC.exptemp);
+        auto id = Identifier.generateId("__aaget");
+        auto vardecl = new VarDeclaration(loc, null, id, ei, STC.exptemp);
         auto declexp = new DeclarationExp(loc, vardecl);
 
         //Expression idrange = new IdentifierExp(loc, Identifier.idPool("_d_arraybounds"));
@@ -18872,9 +18875,9 @@ private Expression buildAAIndexRValueX(Type t, Expression eaa, Expression ekey, 
         auto locargs = new Expressions(new FileInitExp(loc, EXP.file), new LineInitExp(loc));
         auto ex = new CallExp(loc, idrange, locargs);
 
-        auto idvar1 = new IdentifierExp(loc, vartmp);
-        auto idvar2 = new IdentifierExp(loc, vartmp);
-        auto cond = new CondExp(loc, idvar1, idvar2, ex);
+        auto ve1 = new VarExp(loc, vardecl);
+        auto ve2 = new VarExp(loc, vardecl);
+        auto cond = new CondExp(loc, ve1, ve2, ex);
         auto comma = new CommaExp(loc, declexp, cond);
         return comma;
     }
@@ -18995,7 +18998,7 @@ private Expression rewriteAAIndexAssign(BinExp exp, Scope* sc, ref Type[2] alias
         auto tiargs = new Objects(taa.index, taa.next);
         func = new DotTemplateInstanceExp(loc, func, hook, tiargs);
 
-        auto arguments = new Expressions(eaa, ekeys[i-1], new IdentifierExp(loc, idfound));
+        auto arguments = new Expressions(eaa, ekeys[i-1], new VarExp(loc, varfound));
         eaa = new CallExp(loc, func, arguments);
         if (i > 1)
         {
@@ -19052,7 +19055,7 @@ private Expression rewriteAAIndexAssign(BinExp exp, Scope* sc, ref Type[2] alias
                 ex = new CastExp(ex.loc, ex, Type.tvoid);
                 ey = new CastExp(ey.loc, ey, Type.tvoid);
             }
-            Expression condfound = new IdentifierExp(loc, idfound);
+            Expression condfound = new VarExp(loc, varfound);
             ex = new CondExp(loc, condfound, ex, ey);
             ex = Expression.combine(e0, ex);
             ex.isCommaExp().originalExp = exp;
