@@ -58,7 +58,7 @@ jobs:
               -DLLVM_IS_SHARED=OFF
               -DLDC_ENABLE_PLUGINS=OFF
               -DLDC_DYNAMIC_COMPILE=OFF
-            #  -DCMAKE_EXE_LINKER_FLAGS=-lcurl
+              -DLDC_BUNDLE_LLVM_TOOLS=OFF
             # TSan and XRay do not work.
             extra_cmake_flags: >-
               -DTEST_COMPILER_RT_LIBRARIES="profile;lsan;asan;msan;fuzzer"
@@ -80,7 +80,7 @@ jobs:
               -DLLVM_IS_SHARED=OFF
               -DLDC_ENABLE_PLUGINS=OFF
               -DLDC_DYNAMIC_COMPILE=OFF
-            #  -DCMAKE_EXE_LINKER_FLAGS=-lcurl
+              -DLDC_BUNDLE_LLVM_TOOLS=OFF
             extra_cmake_flags: >-
               -DTEST_COMPILER_RT_LIBRARIES="profile;lsan;asan;msan;fuzzer"
               -DLDC_INSTALL_LTOPLUGIN=OFF
@@ -164,7 +164,7 @@ jobs:
             # set up Alpine container
             apk add \
               git cmake ninja-is-really-ninja g++ clang ldc lld llvm-dev llvm-static compiler-rt \
-              libxml2-static zstd-static zlib-static curl-static nghttp2-static \
+              libxml2-static zstd-static zlib-static \
               bash grep diffutils make curl 7zip perl
             # create missing 7za symlink
             ln -s 7z /usr/bin/7za
