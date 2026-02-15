@@ -1222,15 +1222,6 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     return;
   }
 
-  // create alloca point
-  // this gets erased when the function is complete, so alignment etc does not
-  // matter at all
-  llvm::Instruction *allocaPoint =
-      new llvm::AllocaInst(LLType::getInt32Ty(gIR->context()),
-                           0, // Address space
-                           "alloca_point", beginbb);
-  funcGen.allocapoint = allocaPoint;
-
   emitInstrumentationFnEnter(fd);
 
   if (global.params.trace && fd->emitInstrumentation && !fd->isCMain() &&
@@ -1337,13 +1328,6 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     } else {
       gIR->ir->CreateRet(llvm::UndefValue::get(func->getReturnType()));
     }
-  }
-
-  // erase alloca point
-  if (allocaPoint->getParent()) {
-    funcGen.allocapoint = nullptr;
-    allocaPoint->eraseFromParent();
-    allocaPoint = nullptr;
   }
 
   if (gIR->dcomputetarget) {

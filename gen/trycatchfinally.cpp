@@ -213,7 +213,7 @@ void emitBeginCatchMSVC(IRState &irs, Catch *ctch,
     // redirect scope to avoid the generation of debug info before the
     // catchpad
     const auto savedInsertPoint = irs.saveInsertPoint();
-    irs.ir->SetInsertPoint(gIR->topallocapoint());
+    irs.ir->SetInsertPoint(irs.nextAllocaPos());
     DtoVarDeclaration(var);
 
     // catch handler will be outlined, so always treat as a nested reference
@@ -332,6 +332,20 @@ CleanupScope::CleanupScope(llvm::BasicBlock *beginBlock,
     blocks.push_back(endBlock);
 }
 
+namespace {
+#if LDC_LLVM_VER >= 1900
+llvm::BasicBlock::iterator getTerminatorPos(llvm::BasicBlock *bb) {
+  auto it = bb->rbegin().getReverse();
+  assert(it->isTerminator());
+  return it;
+}
+#else
+llvm::Instruction *getTerminatorPos(llvm::BasicBlock *bb) {
+  return bb->getTerminator();
+}
+#endif
+} // anonymous namespace
+
 llvm::BasicBlock *CleanupScope::run(IRState &irs, llvm::BasicBlock *sourceBlock,
                                     llvm::BasicBlock *continueWith) {
   if (useMSVCEH())
@@ -359,12 +373,13 @@ llvm::BasicBlock *CleanupScope::run(IRState &irs, llvm::BasicBlock *sourceBlock,
     branchSelector = new llvm::AllocaInst(
         branchSelectorType, irs.module.getDataLayout().getAllocaAddrSpace(),
         llvm::Twine("branchsel.") + beginBlock()->getName(),
-        irs.topallocapoint());
+        irs.nextAllocaPos());
 
     // Now we also need to store 0 to it to keep the paths that go to the
     // only existing branch target the same.
     for (auto bb : exitTargets.front().sourceBlocks) {
-      new llvm::StoreInst(DtoConstUint(0), branchSelector, bb->getTerminator());
+      new llvm::StoreInst(DtoConstUint(0), branchSelector,
+                          getTerminatorPos(bb));
     }
 
     // And convert the BranchInst to the existing branch target to a
@@ -385,7 +400,7 @@ llvm::BasicBlock *CleanupScope::run(IRState &irs, llvm::BasicBlock *sourceBlock,
     CleanupExitTarget &t = exitTargets[i];
     if (t.branchTarget == continueWith) {
       new llvm::StoreInst(DtoConstUint(i), branchSelector,
-                          sourceBlock->getTerminator());
+                          getTerminatorPos(sourceBlock));
 
       // Note: Strictly speaking, keeping this up to date would not be
       // needed right now, because we never to any optimizations that
@@ -405,7 +420,7 @@ llvm::BasicBlock *CleanupScope::run(IRState &irs, llvm::BasicBlock *sourceBlock,
 
   // ... insert the store into the source block...
   new llvm::StoreInst(selectorVal, branchSelector,
-                      sourceBlock->getTerminator());
+                      getTerminatorPos(sourceBlock));
 
   // ... and keep track of it (again, this is unnecessary right now as
   // discussed in the above note).

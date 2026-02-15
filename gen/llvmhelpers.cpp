@@ -174,7 +174,7 @@ llvm::AllocaInst *DtoArrayAlloca(Type *type, unsigned arraysize,
   LLType *lltype = DtoType(type);
   auto ai = new llvm::AllocaInst(
       lltype, gIR->module.getDataLayout().getAllocaAddrSpace(),
-      DtoConstUint(arraysize), name, gIR->topallocapoint());
+      DtoConstUint(arraysize), name, gIR->nextAllocaPos());
   if (auto alignment = DtoAlignment(type)) {
     ai->setAlignment(llvm::Align(alignment));
   }
@@ -185,7 +185,7 @@ llvm::AllocaInst *DtoRawAlloca(LLType *lltype, size_t alignment,
                                const char *name) {
   auto ai = new llvm::AllocaInst(
       lltype, gIR->module.getDataLayout().getAllocaAddrSpace(), name,
-      gIR->topallocapoint());
+      gIR->nextAllocaPos());
   if (alignment) {
     ai->setAlignment(llvm::Align(alignment));
   }

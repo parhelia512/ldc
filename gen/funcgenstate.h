@@ -187,9 +187,6 @@ public:
   /// Tracks basic blocks corresponding to switch cases.
   SwitchCaseTargets switchTargets;
 
-  /// The marker at which to insert `alloca`s in the function entry bb.
-  llvm::Instruction *allocapoint = nullptr;
-
   /// alloca for the nested context of this function
   llvm::Value *nestedVar = nullptr;
 
