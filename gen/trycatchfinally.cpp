@@ -202,29 +202,13 @@ void emitBeginCatchMSVC(IRState &irs, Catch *ctch,
   // This needs a series of catch pads to match the exception
   // and the catch handler must be terminated by a catch return instruction
   LLValue *exnObj = nullptr;
-  LLValue *cpyObj = nullptr;
   LLValue *typeDesc = nullptr;
   LLValue *clssInfo = nullptr;
   if (var) {
-    // alloca storage for the variable, it always needs a place on the stack
-    // do not initialize, this will be done by the C++ exception handler
-    var->_init = nullptr;
-
-    // redirect scope to avoid the generation of debug info before the
-    // catchpad
-    const auto savedInsertPoint = irs.saveInsertPoint();
-    irs.ir->SetInsertPoint(irs.nextAllocaPos());
-    DtoVarDeclaration(var);
-
-    // catch handler will be outlined, so always treat as a nested reference
-    exnObj = getIrValue(var);
-
-    if (var->nestedrefs.length) {
-      // if variable needed in a closure, use a stack temporary and copy it
-      // when caught
-      cpyObj = exnObj;
-      exnObj = DtoAlloca(var->type, "exnObj");
-    }
+    // Use a helper alloca and copy the value later to the variable.
+    // We need an alloca (and the variable might be captured), and can't emit
+    // any debuginfos (`DtoVarDeclaration()`) before the catchpad instruction.
+    exnObj = DtoAlloca(var->type, "exnObj");
   } else if (ctch->type) {
     // catch without var
     exnObj = DtoAlloca(ctch->type, "exnObj");
@@ -253,11 +237,17 @@ void emitBeginCatchMSVC(IRState &irs, Catch *ctch,
   auto catchpad = irs.ir->CreateCatchPad(catchSwitchInst, args, "");
   catchSwitchInst->addHandler(irs.scopebb());
 
-  if (cpyObj) {
-    // assign the caught exception to the location in the closure
+  if (var) {
+    var->_init = nullptr; // we'll initialize it
+
+    DtoVarDeclaration(var);
+    auto varLval = getIrValue(var);
+
+    // initialize with the exception caught by the C++ handler
     auto val = irs.ir->CreateLoad(DtoType(var->type), exnObj);
-    irs.ir->CreateStore(val, cpyObj);
-    exnObj = cpyObj;
+    irs.ir->CreateStore(val, varLval);
+
+    exnObj = varLval;
   }
 
   // Exceptions are never rethrown by D code (but thrown again), so
