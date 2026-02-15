@@ -187,6 +187,10 @@ public:
   /// Tracks basic blocks corresponding to switch cases.
   SwitchCaseTargets switchTargets;
 
+  /// A temporary block for all allocas, inserted into the function entry block
+  /// when finalizing the function IR.
+  llvm::BasicBlock *allocasBlock = nullptr;
+
   /// alloca for the nested context of this function
   llvm::Value *nestedVar = nullptr;
 

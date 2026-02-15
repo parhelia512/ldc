@@ -159,7 +159,7 @@ public:
 #if LDC_LLVM_VER >= 1900
   llvm::BasicBlock::iterator nextAllocaPos();
 #else
-  llvm::Instruction *nextAllocaPos();
+  llvm::BasicBlock *nextAllocaPos();
 #endif
 
   // Use this to set the IRBuilder's insertion point for a new function.

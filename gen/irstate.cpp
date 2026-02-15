@@ -48,14 +48,14 @@ llvm::Function *IRState::topfunc() { return func()->getLLVMFunc(); }
 #if LDC_LLVM_VER >= 1900
 llvm::BasicBlock::iterator IRState::nextAllocaPos() {
 #else
-llvm::Instruction *IRState::nextAllocaPos() {
+llvm::BasicBlock *IRState::nextAllocaPos() {
 #endif
-  auto it = topfunc()->getEntryBlock().getFirstNonPHIOrDbgOrAlloca();
+  return funcGen()
+      .allocasBlock
 #if LDC_LLVM_VER >= 1900
-  return it;
-#else
-  return &(*it);
+      ->end()
 #endif
+      ;
 }
 
 std::unique_ptr<IRBuilderScope> IRState::setInsertPoint(llvm::BasicBlock *bb) {

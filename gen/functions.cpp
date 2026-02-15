@@ -1222,6 +1222,10 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     return;
   }
 
+  // create temporary allocas block
+  funcGen.allocasBlock =
+      llvm::BasicBlock::Create(gIR->context(), "allocas", func);
+
   emitInstrumentationFnEnter(fd);
 
   if (global.params.trace && fd->emitInstrumentation && !fd->isCMain() &&
@@ -1329,6 +1333,11 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
       gIR->ir->CreateRet(llvm::UndefValue::get(func->getReturnType()));
     }
   }
+
+  // move allocas from temporary block to the start of the function
+  beginbb->splice(beginbb->begin(), funcGen.allocasBlock);
+  funcGen.allocasBlock->eraseFromParent();
+  funcGen.allocasBlock = nullptr;
 
   if (gIR->dcomputetarget) {
     auto kernAttr = getKernelAttr(fd);
