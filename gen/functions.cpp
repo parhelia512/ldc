@@ -1335,7 +1335,12 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
   }
 
   // move allocas from temporary block to the start of the function
+#if LDC_LLVM_VER >= 1600
   beginbb->splice(beginbb->begin(), funcGen.allocasBlock);
+#else
+  beginbb->getInstList().splice(beginbb->begin(),
+                                funcGen.allocasBlock->getInstList());
+#endif
   funcGen.allocasBlock->eraseFromParent();
   funcGen.allocasBlock = nullptr;
 
