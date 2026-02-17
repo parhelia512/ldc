@@ -96,12 +96,16 @@ Value* FunctionInfo::promote(CallBase *CB, IRBuilder<> &B, const G2StackAnalysis
   NumGcToStack++;
 
   auto &BB = CB->getCaller()->getEntryBlock();
-  Instruction *Begin = &(*BB.begin());
 
   // FIXME: set alignment on alloca?
-  return new AllocaInst(Ty,
-      BB.getModule()->getDataLayout().getAllocaAddrSpace(),
-      ".nongc_mem", Begin);
+  return new AllocaInst(
+      Ty, BB.getModule()->getDataLayout().getAllocaAddrSpace(), ".nongc_mem",
+#if LDC_LLVM_VER >= 1900
+      BB.begin()
+#else
+      &(*BB.begin())
+#endif
+  );
 }
 
 static bool isKnownLessThan(Value *Val, uint64_t Limit, const G2StackAnalysis &A) {
@@ -347,7 +351,13 @@ static void RemoveCall(CallBase *CB, const G2StackAnalysis &A) {
   // immediately before it. Ideally, we would find a way to not invalidate
   // the dominator tree here.
   if (auto Invoke = dyn_cast<InvokeInst>(static_cast<Instruction *>(CB))) {
-    BranchInst::Create(Invoke->getNormalDest(), Invoke);
+    BranchInst::Create(Invoke->getNormalDest(),
+#if LDC_LLVM_VER >= 1900
+                       Invoke->getIterator()
+#else
+                       Invoke
+#endif
+    );
     Invoke->getUnwindDest()->removePredecessor(CB->getParent());
   }
 

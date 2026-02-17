@@ -45,7 +45,18 @@ IrFunction *IRState::func() { return &funcGen().irFunc; }
 
 llvm::Function *IRState::topfunc() { return func()->getLLVMFunc(); }
 
-llvm::Instruction *IRState::topallocapoint() { return funcGen().allocapoint; }
+#if LDC_LLVM_VER >= 1900
+llvm::BasicBlock::iterator IRState::nextAllocaPos() {
+#else
+llvm::BasicBlock *IRState::nextAllocaPos() {
+#endif
+  return funcGen()
+      .allocasBlock
+#if LDC_LLVM_VER >= 1900
+      ->end()
+#endif
+      ;
+}
 
 std::unique_ptr<IRBuilderScope> IRState::setInsertPoint(llvm::BasicBlock *bb) {
   auto savedScope = std::make_unique<IRBuilderScope>(builder);

@@ -1222,14 +1222,9 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     return;
   }
 
-  // create alloca point
-  // this gets erased when the function is complete, so alignment etc does not
-  // matter at all
-  llvm::Instruction *allocaPoint =
-      new llvm::AllocaInst(LLType::getInt32Ty(gIR->context()),
-                           0, // Address space
-                           "alloca_point", beginbb);
-  funcGen.allocapoint = allocaPoint;
+  // create temporary allocas block
+  funcGen.allocasBlock =
+      llvm::BasicBlock::Create(gIR->context(), "allocas", func);
 
   emitInstrumentationFnEnter(fd);
 
@@ -1339,12 +1334,15 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     }
   }
 
-  // erase alloca point
-  if (allocaPoint->getParent()) {
-    funcGen.allocapoint = nullptr;
-    allocaPoint->eraseFromParent();
-    allocaPoint = nullptr;
-  }
+  // move allocas from temporary block to the start of the function
+#if LDC_LLVM_VER >= 1600
+  beginbb->splice(beginbb->begin(), funcGen.allocasBlock);
+#else
+  beginbb->getInstList().splice(beginbb->begin(),
+                                funcGen.allocasBlock->getInstList());
+#endif
+  funcGen.allocasBlock->eraseFromParent();
+  funcGen.allocasBlock = nullptr;
 
   if (gIR->dcomputetarget) {
     auto kernAttr = getKernelAttr(fd);

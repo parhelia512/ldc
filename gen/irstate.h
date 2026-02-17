@@ -155,7 +155,12 @@ public:
   FuncGenState &funcGen();
   IrFunction *func();
   llvm::Function *topfunc();
-  llvm::Instruction *topallocapoint();
+
+#if LDC_LLVM_VER >= 1900
+  llvm::BasicBlock::iterator nextAllocaPos();
+#else
+  llvm::BasicBlock *nextAllocaPos();
+#endif
 
   // Use this to set the IRBuilder's insertion point for a new function.
   // The previous IRBuilder state is restored when the returned value is
