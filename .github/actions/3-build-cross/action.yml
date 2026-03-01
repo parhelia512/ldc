@@ -144,6 +144,7 @@ runs:
           --installWithSuffix "" \
           CMAKE_INSTALL_PREFIX="$PWD/install" \
           INCLUDE_INSTALL_DIR="$PWD/install/import" \
+          BUILD_LTO_LIBS=ON \
           "${flags[@]}"
 
     - name: Cross-compile LDC executables
